@@ -1,0 +1,9 @@
+data/
+__pycache__/
+*.tif
+*.pyc
+.env
+*.egg-info/
+dist/
+build/
+.DS_Store
