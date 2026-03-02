@@ -70,9 +70,8 @@ def analyze_change_with_ai(change_pct, change_pixels, size_km, threshold):
 # Initialize Earth Engine
 try:
     credentials = ee.ServiceAccountCredentials(
-        email=st.secrets["ee_service_account"],
-        key_data=st.secrets["ee_private_key"]
-    )
+        email=st.secrets["ee_service_account"]["client_email"],
+        key_data=st.secrets["ee_service_account"]["ee_private_key"]    )
     ee.Initialize(credentials)
 except Exception as e:
     st.error(f"Failed to initialize Earth Engine: {e}")
