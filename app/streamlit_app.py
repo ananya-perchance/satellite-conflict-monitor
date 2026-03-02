@@ -18,8 +18,8 @@ def analyze_change_with_ai(change_pct, change_pixels, size_km, threshold):
     Detailed analysis of landscape changes.
     Recognizes patterns based on change density and area size.
     """
-    total_area_km2 = size_km**2
-    changed_area_km2 = (change_pct / 100) * total_area_km2
+    total_area_km2 = float(size_km)**2
+    changed_area_km2 = (float(change_pct) / 100.0) * total_area_km2
     
     analysis = [f"**Area Overview:** Analyzed a {size_km}x{size_km} km region ({total_area_km2} km²)."]
     
