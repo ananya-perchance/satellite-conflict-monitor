@@ -181,10 +181,10 @@ if run_btn:
     # Images
     st.subheader("Visual Comparison")
     c1, c2, c3, c4 = st.columns(4)
-    c1.image(b, caption="Before (Band B4)",      use_container_width=True)
-    c2.image(a, caption="After (Band B4)",       use_container_width=True)
-    c3.image(d, caption="Difference",            use_container_width=True)
-    c4.image(m, caption="Detected Changes",      use_container_width=True)
+    c1.image(b, caption="Before (Band B4)",      use_column_width=True)
+    c2.image(a, caption="After (Band B4)",       use_column_width=True)
+    c3.image(d, caption="Difference",            use_column_width=True)
+    c4.image(m, caption="Detected Changes",      use_column_width=True)
 
     st.markdown(
         f"**Center:** lat={lat}, lon={lon} | "
