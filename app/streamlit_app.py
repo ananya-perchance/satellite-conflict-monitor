@@ -37,7 +37,7 @@ def analyze_change_with_ai(change_pct, change_pixels, size_km, threshold):
         
     return 
 
-.join(analysis)
+join(analysis)
 
 def search_location(query):
     """Simple geocoding using Nominatim (no API key required)."""
