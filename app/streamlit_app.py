@@ -204,7 +204,7 @@ if st.button("Analyze Changes"):
                         'format': 'png'
                     })
                     old_img = Image.open(BytesIO(requests.get(old_url).content))
-                    st.image(old_img, use_container_width=True)
+                    st.image(old_img, use_column_width=True)
                     
                     st.caption(f"Date: {old_date.strftime('%Y-%m-%d')}")
                 
@@ -216,7 +216,7 @@ if st.button("Analyze Changes"):
                         'format': 'png'
                     })
                     recent_img = Image.open(BytesIO(requests.get(recent_url).content))
-                    st.image(recent_img, use_container_width=True)
+                    st.image(recent_img, use_column_width=True)
                     recent_date = datetime.fromtimestamp(recent.get('system:time_start').getInfo()/1000)
                     st.caption(f"Date: {recent_date.strftime('%Y-%m-%d')}")
                 
@@ -228,7 +228,7 @@ if st.button("Analyze Changes"):
                     'format': 'png'
                 })
                 change_img = Image.open(BytesIO(requests.get(change_url).content))
-                st.image(change_img, use_container_width=True)
+                st.image(change_img, use_column_width=True)
                 st.caption(f"Red areas indicate changes (Threshold: {threshold})")
                 
                 # AI Analysis with detailed insights
