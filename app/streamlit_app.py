@@ -138,7 +138,7 @@ with st.sidebar:
     threshold  = st.slider("Change threshold (0-60)", min_value=5,  max_value=60,  value=25)
     cloud_pct  = st.slider("Max cloud cover (%)",     min_value=5,  max_value=50,  value=20)
 
-    run_btn = st.button("Run Analysis", type="primary", use_column_width=True)
+    run_btn = st.button("Run Analysis", type="primary", use_container_width=True)
 
     st.markdown("---")
     st.caption(
@@ -181,10 +181,10 @@ if run_btn:
     # Images
     st.subheader("Visual Comparison")
     c1, c2, c3, c4 = st.columns(4)
-    c1.image(b, caption="Before (Band B4)",      use_column_width=True)
-    c2.image(a, caption="After (Band B4)",       use_column_width=True)
-    c3.image(d, caption="Difference",            use_column_width=True)
-    c4.image(m, caption="Detected Changes",      use_column_width=True)
+    c1.image(b, caption="Before (Band B4)",      use_container_width=True)
+    c2.image(a, caption="After (Band B4)",       use_container_width=True)
+    c3.image(d, caption="Difference",            use_container_width=True)
+    c4.image(m, caption="Detected Changes",      use_container_width=True)
 
     st.markdown(
         f"**Center:** lat={lat}, lon={lon} | "
