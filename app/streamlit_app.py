@@ -35,7 +35,7 @@ def analyze_change_with_ai(change_pct, change_pixels, size_km, threshold):
     if threshold < 15:
         analysis.append("_Note: Sensitivity is set very high; some 'changes' may be due to lighting or cloud artifacts._")
         
-    return "
+    return 
 
 ".join(analysis)
 
