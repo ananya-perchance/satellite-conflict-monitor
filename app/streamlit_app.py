@@ -3,10 +3,10 @@ import streamlit as st
 import ee
 import numpy as np
 import cv2
-from datetime import datetime, timedelta
-import requests
+from datetime import datetime, timedeltaa
 from io import BytesIO
 from PIL import Image
+import requests
 import sys
 import os
 from streamlit_folium import st_folium
@@ -21,150 +21,223 @@ def analyze_change_with_ai(change_pct, change_pixels, size_km, threshold):
     total_area_km2 = float(size_km)**2
     changed_area_km2 = (float(change_pct) / 100.0) * total_area_km2
     
-    analysis = [f"**Area Overview:** Analyzed a {size_km}x{size_km} km region ({total_area_km2} km²)."]
+    analysis = [f"***Area Overview:** Analyzed a {size_km}×{size_km} km region ({total_area_km2} km²)."]
     
     if change_pct < 2:
         analysis.append("✅ **Stability:** The region is highly stable. No visible structural changes.")
-    elif 2 <= change_pct < 8:
-        analysis.append("🔍 **Minor Activity:** Detected small-scale anomalies. This usually corresponds to vehicle tracks, minor land clearing, or seasonal vegetation drying.")
-    elif 8 <= change_pct < 25:
-        analysis.append(f"🚧 **Construction/Activity:** Significant changes detected over {changed_area_km2:.2f} km². This pattern is typical for new infrastructure, road development, or large encampments.")
+    elif change_pct < 5:
+        analysis.append("⚠️ **Low Change:** Minor changes detected, possibly seasonal vegetation or natural erosion.")
+    elif change_pct < 15:
+        analysis.append("🔶 **Moderate Change:** Noticeable changes. Could be infrastructure development or agricultural activity.")
+    elif change_pct < 30:
+        analysis.append("🔴 **Significant Change:** Major alterations detected. Potential military build-up or large-scale construction.")
     else:
-        analysis.append(f"🚨 **Major Transformation:** Extreme change detected ({change_pct}%). This suggests large-scale earth-moving, major building construction, or significant surface disturbance (e.g., forest fire or heavy military activity).")
-
-    if threshold < 15:
-        analysis.append("_Note: Sensitivity is set very high; some 'changes' may be due to lighting or cloud artifacts._")
-        
-    return "
-
-".join(analysis)
-
-def search_location(query):
-    """Simple geocoding using Nominatim (no API key required)."""
-    try:
-        url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
-        headers = {"User-Agent": "SatelliteConflictMonitor/1.0"}
-        resp = requests.get(url, headers=headers, timeout=10)
-        data = resp.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"]), data[0]["display_name"]
-    except Exception:
-        pass
-    return None
-
-# ---------------------------------------------------------------------------
-# Earth Engine helpers
-# ---------------------------------------------------------------------------
-def init_ee():
-    try:
-        if "ee_service_account" in st.secrets:
-            credentials = ee.ServiceAccountCredentials(
-                st.secrets["ee_service_account"]["client_email"],
-                key_data=st.secrets["ee_service_account"]["private_key"]
-            )
-            ee.Initialize(credentials)
+        analysis.append("🚨 **Critical Change:** Extensive modifications across the region. High priority for investigation.")
+    
+    # Detailed breakdowns
+    analysis.append(f"\n**Change Statistics:**")
+    analysis.append(f"- Changed Area: {changed_area_km2:.2f} km²")
+    analysis.append(f"- Percentage Changed: {change_pct:.2f}%")
+    analysis.append(f"- Changed Pixels: {change_pixels:,}")
+    
+    # Pattern interpretation
+    if change_pct > 10:
+        if changed_area_km2 > 50:
+            analysis.append("\n📊 **Pattern Analysis:** Large-scale development. Likely involves:")
+            analysis.append("  - Military base expansion")
+            analysis.append("  - Infrastructure projects (roads, airstrips)")
+            analysis.append("  - Mining or resource extraction")
+        elif changed_area_km2 > 10:
+            analysis.append("\n📊 **Pattern Analysis:** Medium-scale activity. Possible scenarios:")
+            analysis.append("  - New building construction")
+            analysis.append("  - Agricultural expansion")
+            analysis.append("  - Border fortifications")
         else:
-            ee.Initialize()
-    except Exception:
-        ee.Authenticate()
-        ee.Initialize()
+            analysis.append("\n📊 **Pattern Analysis:** Localized changes. Could indicate:")
+            analysis.append("  - Small outpost or checkpoint construction")
+            analysis.append("  - Vegetation clearing")
+            analysis.append("  - Minor infrastructure updates")
+    
+    # Recommendations
+    if change_pct > 15:
+        analysis.append("\n💡 **Recommendations:**")
+        analysis.append("  - Conduct follow-up analysis with higher resolution imagery")
+        analysis.append("  - Compare with historical trends for confirmation")
+        analysis.append("  - Monitor region continuously for further developments")
+    
+    return "\n".join(analysis)
 
-def km_to_deg(km): return km / 111.0
+# Initialize Earth Engine
+try:
+    credentials = ee.ServiceAccountCredentials(
+        email=st.secrets["ee_service_account"],
+        key_data=st.secrets["ee_private_key"]
+    )
+    ee.Initialize(credentials)
+except Exception as e:
+    st.error(f"Failed to initialize Earth Engine: {e}")
+    sys.exit(1)
 
-def get_bbox(lat, lon, size_km):
-    d = km_to_deg(size_km) / 2
-    return ee.Geometry.Rectangle([lon - d, lat - d, lon + d, lat + d])
-
-def get_before_after_images(aoi, days_back=365, cloud_pct=20):
-    end = datetime.utcnow()
-    start = end - timedelta(days=days_back)
-    start_str = start.strftime("%Y-%m-%d")
-    end_str = end.strftime("%Y-%m-%d")
-    col = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-           .filterBounds(aoi)
-           .filterDate(start_str, end_str)
-           .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", cloud_pct)))
-    before = col.limit(20).median().clip(aoi)
-    after = col.sort("system:time_start", False).limit(5).median().clip(aoi)
-    return before, after, f"{start_str} to {end_str}"
-
-def ee_image_to_array(image, region, size=512):
-    url = image.getThumbURL({"region": region, "dimensions": size, "format": "png", "min": 0, "max": 3000, "bands": ["B4"]})
-    resp = requests.get(url, timeout=60)
-    img = Image.open(BytesIO(resp.content)).convert("L")
-    return np.array(img)
-
-def detect_change(before_arr, after_arr, threshold=25):
-    before_n = cv2.normalize(before_arr, None, 0, 255, cv2.NORM_MINMAX).astype("uint8")
-    after_n = cv2.normalize(after_arr, None, 0, 255, cv2.NORM_MINMAX).astype("uint8")
-    diff = cv2.absdiff(after_n, before_n)
-    _, mask = cv2.threshold(diff, threshold, 255, cv2.THRESH_BINARY)
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    change_pixels = int(np.sum(mask == 255))
-    return before_n, after_n, diff, mask, change_pixels, round(change_pixels / mask.size * 100, 2)
-
-# ---------------------------------------------------------------------------
-# Streamlit UI
-# ---------------------------------------------------------------------------
-st.set_page_config(page_title="Satellite Conflict Monitor", page_icon="satellite", layout="wide")
 st.title("🛰️ Satellite Conflict Monitor")
+st.write("Detect landscape changes using Sentinel-2 satellite imagery")
 
-if 'lat' not in st.session_state: st.session_state.lat = 33.3457
-if 'lon' not in st.session_state: st.session_state.lon = 75.9557
+# Add tabs for different input methods
+tab1, tab2 = st.tabs(["📍 Coordinates", "🗺️ Map Picker"])
 
-with st.sidebar:
-    st.header("1. Find Location")
-    search_query = st.text_input("Search for a place (e.g., 'Gaza', 'Taipei')")
-    if search_query:
-        result = search_location(search_query)
-        if result:
-            st.session_state.lat, st.session_state.lon, name = result
-            st.success(f"Found: {name}")
-        else:
-            st.warning("Location not found.")
-
-    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=12)
-    m.add_child(folium.LatLngPopup())
-    map_data = st_folium(m, height=250, width=300, key="map")
+with tab1:
+    st.subheader("Enter Location Coordinates")
+    col1, col2 = st.columns(2)
+    with col1:
+        lat = st.number_input("Latitude", value=34.0, min_value=-90.0, max_value=90.0, format="%.4f")
+    with col2:
+        lon = st.number_input("Longitude", value=74.0, min_value=-180.0, max_value=180.0, format="%.4f")
     
-    if map_data and map_data.get("last_clicked"):
-        st.session_state.lat = map_data["last_clicked"]["lat"]
-        st.session_state.lon = map_data["last_clicked"]["lng"]
-
-    lat = st.number_input("Latitude", value=st.session_state.lat, format="%.4f")
-    lon = st.number_input("Longitude", value=st.session_state.lon, format="%.4f")
-    size_km = st.slider("Analysis Box (km)", 5, 50, 15)
-    
-    st.header("2. Settings")
-    threshold = st.slider("Sensitivity Threshold", 5, 60, 25)
-    run_btn = st.button("🚀 Run Detailed AI Analysis", type="primary", use_container_width=True)
-
-if run_btn:
-    with st.spinner("🔍 Accessing Sentinel-2 archives and computing changes..."):
+    # Location search
+    st.write("**Or search for a location:**")
+    location_search = st.text_input("Enter place name (e.g., 'Kashmir, India' or 'Doklam')")
+    if location_search:
         try:
-            init_ee()
-            aoi = get_bbox(lat, lon, size_km)
-            before_img, after_img, date_range = get_before_after_images(aoi)
-            before_arr = ee_image_to_array(before_img, aoi)
-            after_arr = ee_image_to_array(after_img, aoi)
-            b, a, d, m, pixels, pct = detect_change(before_arr, after_arr, threshold=threshold)
-            
-            st.subheader("🤖 Detailed AI Analysis")
-            st.info(analyze_change_with_ai(pct, pixels, size_km, threshold))
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Changed Area", f"{pct}%")
-            col2.metric("Changed Pixels", f"{pixels:,}")
-            col3.metric("Observation Span", date_range)
-            
-            v1, v2, v3, v4 = st.columns(4)
-            v1.image(b, caption="Baseline (Before)", use_column_width=True)
-            v2.image(a, caption="Current (After)", use_column_width=True)
-            v3.image(d, caption="Difference Map", use_column_width=True)
-            v4.image(m, caption="Verified Changes", use_column_width=True)
+            # Use Nominatim API for geocoding
+            geocode_url = f"https://nominatim.openstreetmap.org/search?q={location_search}&format=json&limit=1"
+            response = requests.get(geocode_url, headers={"User-Agent": "SatelliteConflictMonitor/1.0"})
+            if response.status_code == 200:
+                results = response.json()
+                if results:
+                    lat = float(results[0]["lat"])
+                    lon = float(results[0]["lon"])
+                    st.success(f"Found: {results[0].get('display_name', location_search)} at ({lat:.4f}, {lon:.4f})")
+                else:
+                    st.warning("Location not found. Please try a different search term.")
+            else:
+                st.error("Geocoding service unavailable. Please use coordinates.")
         except Exception as e:
-            st.error(f"Analysis failed: {e}")
-else:
-    st.info("Search for a place, click on the map, or enter coordinates to begin monitoring.")
+            st.error(f"Error searching location: {e}")
+
+with tab2:
+    st.subheader("Select Location on Map")
+    st.write("Click on the map to select coordinates, or drag the marker.")
+    
+    # Create a folium map centered on current coordinates
+    m = folium.Map(location=[lat if 'lat' in locals() else 34.0, lon if 'lon' in locals() else 74.0], zoom_start=6)
+    
+    # Add a draggable marker
+    folium.Marker(
+        [lat if 'lat' in locals() else 34.0, lon if 'lon' in locals() else 74.0],
+        popup="Drag me!",
+        draggable=True
+    ).add_to(m)
+    
+    # Display map and get click data
+    map_data = st_folium(m, width=700, height=500)
+    
+    # Update coordinates if map was clicked or marker dragged
+    if map_data and map_data.get("last_clicked"):
+        lat = map_data["last_clicked"]["lat"]
+        lon = map_data["last_clicked"]["lng"]
+        st.success(f"Selected coordinates: ({lat:.4f}, {lon:.4f})")
+
+# Parameters
+st.subheader("Analysis Parameters")
+col3, col4, col5 = st.columns(3)
+with col3:
+    size_km = st.slider("Area Size (km)", min_value=5, max_value=50, value=20, 
+                        help="Size of the square area to analyze")
+with col4:
+    months_back = st.slider("Months Back", min_value=1, max_value=24, value=6,
+                           help="How far back to compare imagery")
+with col5:
+    threshold = st.slider("Sensitivity", min_value=10, max_value=100, value=30,
+                         help="Lower = more sensitive to changes")
+
+if st.button("Analyze Changes"):
+    with st.spinner("Processing satellite imagery..."):
+        try:
+            # Define region
+            point = ee.Geometry.Point([lon, lat])
+            region = point.buffer(size_km * 1000 / 2).bounds()
+            
+            # Date ranges
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=months_back*30)
+            
+            # Get Sentinel-2 images
+            collection = ee.ImageCollection('COPERNICUS/S2_SR') \
+                .filterBounds(point) \
+                .filterDate(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')) \
+                .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+            
+            if collection.size().getInfo() < 2:
+                st.error("Not enough cloud-free images available for this location and time period.")
+            else:
+                # Get recent and old images
+                recent = collection.sort('system:time_start', False).first()
+                old = collection.sort('system:time_start').first()
+                
+                # Select RGB bands
+                recent_rgb = recent.select(['B4', 'B3', 'B2'])
+                old_rgb = old.select(['B4', 'B3', 'B2'])
+                
+                # Compute change
+                diff = recent_rgb.subtract(old_rgb).abs().reduce(ee.Reducer.sum())
+                change_mask = diff.gt(threshold)
+                
+                # Get change statistics
+                stats = change_mask.reduceRegion(
+                    reducer=ee.Reducer.sum(),
+                    geometry=region,
+                    scale=10,
+                    maxPixels=1e9
+                ).getInfo()
+                
+                change_pixels = stats.get('sum', 0)
+                total_pixels = region.area().divide(100).getInfo()
+                change_pct = (change_pixels / total_pixels) * 100 if total_pixels > 0 else 0
+                
+                # Display results
+                st.success("Analysis Complete!")
+                
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    st.subheader("📅 Older Image")
+                    old_url = old_rgb.visualize(min=0, max=3000).getThumbURL({
+                        'region': region,
+                        'dimensions': 512,
+                        'format': 'png'
+                    })
+                    old_img = Image.open(BytesIO(requests.get(old_url).content))
+                    st.image(old_img, use_container_width=True)
+                    old_date = datetime.fromtimestamp(old.get('system:time_start').getInfo()/1000)
+                    st.caption(f"Date: {old_date.strftime('%Y-%m-%d')}")
+                
+                with col_b:
+                    st.subheader("🆕 Recent Image")
+                    recent_url = recent_rgb.visualize(min=0, max=3000).getThumbURL({
+                        'region': region,
+                        'dimensions': 512,
+                        'format': 'png'
+                    })
+                    recent_img = Image.open(BytesIO(requests.get(recent_url).content))
+                    st.image(recent_img, use_container_width=True)
+                    recent_date = datetime.fromtimestamp(recent.get('system:time_start').getInfo()/1000)
+                    st.caption(f"Date: {recent_date.strftime('%Y-%m-%d')}")
+                
+                # Change visualization
+                st.subheader("🔍 Detected Changes")
+                change_url = change_mask.visualize(min=0, max=1, palette=['black', 'red']).getThumbURL({
+                    'region': region,
+                    'dimensions': 512,
+                    'format': 'png'
+                })
+                change_img = Image.open(BytesIO(requests.get(change_url).content))
+                st.image(change_img, use_container_width=True)
+                st.caption(f"Red areas indicate changes (Threshold: {threshold})")
+                
+                # AI Analysis with detailed insights
+                st.subheader("🤖 AI Analysis")
+                ai_analysis = analyze_change_with_ai(change_pct, change_pixels, size_km, threshold)
+                st.info(ai_analysis)
+                
+        except Exception as e:
+            st.error(f"Error during analysis: {e}")
+            st.exception(e)
