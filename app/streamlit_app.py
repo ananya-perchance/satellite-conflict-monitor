@@ -205,6 +205,7 @@ if st.button("Analyze Changes"):
                     })
                     old_img = Image.open(BytesIO(requests.get(old_url).content))
                     st.image(old_img, use_column_width=True)
+                                        old_date = datetime.fromtimestamp(old.get('system:time_start').getInfo()/1000)
                     
                     st.caption(f"Date: {old_date.strftime('%Y-%m-%d')}")
                 
