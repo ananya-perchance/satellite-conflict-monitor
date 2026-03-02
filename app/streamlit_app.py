@@ -189,8 +189,8 @@ if st.button("Analyze Changes"):
                 ).getInfo()
                 
                 change_pixels = stats.get('sum', 0)
-                total_pixels = region.area(maxError=1).divide(100).getInfo()                change_pct = (change_pixels / total_pixels) * 100 if total_pixels > 0 else 0
-                
+                total_pixels = region.area(maxError=1).divide(100).getInfo()
+                change_pct = (change_pixels / total_pixels) * 100 if total_pixels > 0 else 0                
                 # Display results
                 st.success("Analysis Complete!")
                 
@@ -205,7 +205,7 @@ if st.button("Analyze Changes"):
                     })
                     old_img = Image.open(BytesIO(requests.get(old_url).content))
                     st.image(old_img, use_container_width=True)
-                    old_date = datetime.fromtimestamp(old.get('system:time_start').getInfo()/1000)
+                    
                     st.caption(f"Date: {old_date.strftime('%Y-%m-%d')}")
                 
                 with col_b:
