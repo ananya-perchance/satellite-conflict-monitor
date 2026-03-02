@@ -3,7 +3,7 @@ import streamlit as st
 import ee
 import numpy as np
 import cv2
-from datetime import datetime, timedeltaa
+from datetime import datetime, timedelta
 from io import BytesIO
 from PIL import Image
 import requests
