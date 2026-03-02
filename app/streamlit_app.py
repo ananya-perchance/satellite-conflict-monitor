@@ -189,7 +189,7 @@ if st.button("Analyze Changes"):
                 ).getInfo()
                 
                 change_pixels = stats.get('sum', 0)
-                total_pixels = region.area().divide(100).getInfo()
+                total_pixels = region.areamaxError=1().divide(100).getInfo()
                 change_pct = (change_pixels / total_pixels) * 100 if total_pixels > 0 else 0
                 
                 # Display results
