@@ -32,7 +32,7 @@ Context: {context}
 Please provide a concise analysis of what these changes might represent (e.g., new construction, vegetation changes, infrastructure development) and any potential significance in a {context} context. Be objective and mention that this is an AI-assisted analysis.
 """
     try:
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}]
         }
